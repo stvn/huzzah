@@ -80,7 +80,7 @@ TestCase('hza.Model', {
 TestCase('hza.Controller and hza.View', {
   setUp: function () {
     this.model      = new hza.Model('testModel');
-    this.controller = new hza.Controller(this.model);
+    this.controller = new hza.Controller('testController', this.model);
     this.indexView  = new hza.View('index', this.controller);
     this.newView    = new hza.View('new', this.controller);
     this.showView   = new hza.View('show', this.controller);
@@ -165,5 +165,22 @@ TestCase('hza.Controller and hza.View', {
     assertEquals('index', response);
     assertUndefined(this.model.find('test1'));
   }  
+});
+
+TestCase('hza.Component', {
+  setUp: function () {
+    this.model      = new hza.Model('testModel');
+    this.controller = new hza.Controller('testController', this.model);
+    this.indexView  = new hza.View('index', this.controller);
+    this.component = new hza.Component('widget', new gin.html.Element({div: {id: 'little-widget'}}));  
+  },
+
+  'test should be able to instantiate new component': function () {
+    //moved to setup
+  },
+
+  'test should be able to add to view' : function () {
+    //this.component.addToView(this.indexView);
+  }
 });
 
