@@ -169,10 +169,11 @@ TestCase('hza.Controller and hza.View', {
 
 TestCase('hza.Component', {
   setUp: function () {
+    var html        = new gin.html.Element('div', {id: 'widget'});
     this.model      = new hza.Model('testModel');
     this.controller = new hza.Controller('testController', this.model);
     this.indexView  = new hza.View('index', this.controller);
-    this.component = new hza.Component('widget', new gin.html.Element({div: {id: 'little-widget'}}));  
+    this.component  = new hza.Component('widget-component', html);
   },
 
   'test should be able to instantiate new component': function () {
@@ -180,7 +181,7 @@ TestCase('hza.Component', {
   },
 
   'test should be able to add to view' : function () {
-    //this.component.addToView(this.indexView);
+    this.component.addToView(this.indexView);
   }
 });
 
