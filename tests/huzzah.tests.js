@@ -169,6 +169,7 @@ TestCase('hza.Controller and hza.View', {
 
 TestCase('hza.Component', {
   setUp: function () {
+    /*:DOC += <html><head></head><body></body></html> */    
     var html        = new gin.html.Element('div', {id: 'widget'});
     this.model      = new hza.Model('testModel');
     this.controller = new hza.Controller('testController', this.model);
@@ -181,7 +182,14 @@ TestCase('hza.Component', {
   },
 
   'test should be able to add to view' : function () {
+    var response;
+    
+    var response;
+    gin.events.subscribe('component/widget-component/afterRender', function (resp) {
+       response = resp;
+    });
     this.component.addToView(this.indexView);
+    assertEquals('component/afterRender', response);
   }
 });
 
