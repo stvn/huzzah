@@ -1,7 +1,42 @@
-gin.Class('hza.Model', {
-  _dataStore: {},
+gin.ns('hza.router', {
+  controllers: {},
+  current: null,
 
+  route: function (path) {
+    //sample path: controller/view/id
+    var segments = path.split('/'),
+        controller = segments[0],
+        view = segments[1],
+        id = segments[2 ? segments[2] : null];
+    
+    this.getResource(controller, view, id);
+    this.current = path;
+  },
+
+  getResource: function (controller, view, id) {
+    if (this.controllers[controller] && this.controllers[controller][view]) {
+      this.current = [controller, view, id]; 
+      this.controllers[controller][view](id);
+    } else {
+      throw new Error('Routing Error: No matching route.');
+    }
+  },
+
+  loadCurrent: function () {
+    this.getResource(this.current);           
+  },
+
+  registerController: function (controller) {
+    this.controllers[controller.name] = controller;
+  }
+
+});
+
+gin.Class('hza.Model', {
   name: null,
+  _dataStore: {},
+  _controller: {},
+  _views: [],  
 
   init: function (name) {
     if (!name) {throw new Error('A name is required.'); }
@@ -66,10 +101,6 @@ gin.Class('hza.Model', {
     var value = this._dataStore[key];
     return 'key: ' + key + ' value: ' + value + ' type: ' + typeof value;
   },
-  
-  _controller: {},
-
-  _views: [],
 
   _registerController: function (controller) {
     this._controller = controller;
@@ -87,11 +118,17 @@ gin.Class('hza.Model', {
 
 gin.Class('hza.Controller', {
   name: null,
+  router: hza.router,
+  _currentView: null,
+  _viewMap: {},
+  _model: {},
+  _views: [],
 
   init:  function (name, model) {
     if (!name || !model) { throw new Error('A name and/or model required.'); } 
     this.name = name;
     this._registerModel(model);
+    this._registerWithRouter();
   },
 
   index: function () {
@@ -128,8 +165,6 @@ gin.Class('hza.Controller', {
     this.redirectTo('index');
   },
 
-_currentView: null,
-
   render: function (viewName, data) {
     if (this._currentView) { this._currentView.hide(); }
     var view = this._getView(viewName);
@@ -140,23 +175,30 @@ _currentView: null,
   redirectTo: function (view, data) {
     this.render(view, data)
   },
-  
-  _model: {},
-
-  _views: [],
 
   _registerModel: function (model) {
     this._model = model;
     this._model._registerController(this);
   },
 
-  _registerView: function (view) {
+  _registerView: function (view, bindData) {
     this._views.push(view);
     this._viewMap[view.name] = this._views.length - 1;
     this._model._registerView(view);
+    if (!this[view.name]) {
+      this._createViewAction(view, bindData);
+    }
   },
 
-  _viewMap: {},
+  _registerWithRouter: function () {
+    this.router.registerController(this);
+  },
+
+  _createViewAction: function (view, bindData) {
+    this[view.name] = gin.bind(this, function () {
+      this.render(view.name, bindData);
+    });
+  },
 
   _getView: function (name) {
     return this._views[this._viewMap[name]];
@@ -165,18 +207,16 @@ _currentView: null,
 
 
 gin.Class('hza.View', {
-  init: function (name, controller) {
+  name: null,
+  _controller: {},
+  _components : [],
+    
+  init: function (name, controller, bindData) {
     if (!name || !controller) { throw new Error('A name and/or controller required.'); } 
     this.name = name;
-    this._registerController(controller);
+    this._registerController(controller, bindData);
     this.render();
   },
-
-  name: null,
-  
-  _controller: {},
-
-  _components : [],
 
   render: function (data) {
     this._beforeRender();
@@ -194,9 +234,9 @@ gin.Class('hza.View', {
     this._notify('afterRender', this.name);
   },
 
-  _registerController: function (controller) {
+  _registerController: function (controller, bindData) {
     this._controller = controller;
-    this._controller._registerView(this);
+    this._controller._registerView(this, bindData);
   },
 
   _registerComponent: function (component) {
@@ -222,17 +262,17 @@ gin.Class('hza.View', {
 
 
 gin.Class('hza.Component', {
+  id: null,
+  html: null,
+  container: null,
+  _view: null,
+  _cachedStyleDisplay:  '',
+
   init: function (id, html, container) {
     this.id = id || gin.utils.random();
     this.html = html;
     this.container = $('#' + container) || document.body;
   },
-
-  id: null,
-
-  html: null,
-
-  container: null,
 
   render: function () {
     this._beforeRender();
@@ -268,10 +308,6 @@ gin.Class('hza.Component', {
   _registerView: function (view) {
     this._view = view;
     this._view._registerComponent(this);
-  },
-
-  _view: null,
-
-  _cachedStyleDisplay:  ''
-    
+  }
 });
+
