@@ -167,6 +167,22 @@ TestCase('hza.Controller and hza.View', {
   }  
 });
 
+TestCase('hza.router', {
+  'test should find route': function () {
+    var model = new hza.Model('main'),
+        controller = new hza.Controller('main', model),
+        view = new hza.View('main', controller),
+        router = hza.router,
+        response;;
+
+    gin.events.subscribe('main/afterRender', function (view) {
+       response = view;
+    });
+    router.route('main/main/');
+    assertEquals('main', response);
+  }
+});
+
 TestCase('hza.Component', {
   setUp: function () {
     /*:DOC += <html><head></head><body></body></html> */    
