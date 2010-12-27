@@ -38,9 +38,10 @@ gin.Class('hza.Model', {
   _controller: {},
   _views: [],  
 
-  init: function (name) {
+  init: function (name, extend) {
     if (!name) {throw new Error('A name is required.'); }
     this.name = name;
+    if (extend) { gin.merge(this, extend); }
   },
 
   create: function (key, value) {
@@ -124,11 +125,12 @@ gin.Class('hza.Controller', {
   _model: {},
   _views: [],
 
-  init:  function (name, model) {
+  init:  function (name, model, extend) {
     if (!name || !model) { throw new Error('A name and/or model required.'); } 
     this.name = name;
     this._registerModel(model);
     this._registerWithRouter();
+    if (extend) { gin.merge(this, extend); }
   },
 
   index: function () {
@@ -211,10 +213,11 @@ gin.Class('hza.View', {
   _controller: {},
   _components : [],
     
-  init: function (name, controller, bindData) {
+  init: function (name, controller, bindData, extend) {
     if (!name || !controller) { throw new Error('A name and/or controller required.'); } 
     this.name = name;
     this._registerController(controller, bindData);
+    if (extend) { gin.merge(this, extend); }
     //this.render();
   },
 
@@ -270,29 +273,29 @@ gin.Class('hza.Component', {
   _view: null,
   _cachedStyleDisplay:  '',
 
-  init: function (id, html, container) {
-    this.id = id || gin.utils.random();
+  init: function (id, html, container, extend) {
+    this.id = id;
     this.html = html;
-    this.container = $('#' + container) || $('body');
+    this.container = document.getElementById(container) || document.body;
+    if (extend) { gin.merge(this, extend); }
   },
 
   render: function () {
     this._beforeRender();
-    var component = '';
-    component += '<div id="' + this.id + '">';
-    component += this.html.html;
-    component += '</div>';
-    $(this.container).append(component);
+    var component = document.createElement('div');
+    component.id = this.id;
+    component.innerHTML = this.html;
+    this.container.appendChild(component);
     this._afterRender();
   },
 
   hide: function () {
-    this._cachedStyleDisplay = this.container[0].style.display;
-    this.container[0].style.display = 'none';
+    this._cachedStyleDisplay = this.container.style.display;
+    this.container.style.display = 'none';
   },
 
   show: function () {
-    this.container[0].style.display = this._cachedStyleDisplay;
+    this.container.style.display = this._cachedStyleDisplay;
   },
 
   addToView: function (view) {
