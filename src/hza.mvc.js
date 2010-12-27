@@ -215,12 +215,14 @@ gin.Class('hza.View', {
     if (!name || !controller) { throw new Error('A name and/or controller required.'); } 
     this.name = name;
     this._registerController(controller, bindData);
-    this.render();
+    //this.render();
   },
 
   render: function (data) {
     this._beforeRender();
-    //render function here
+    for (var i = 0, ii = this._components.length; i < ii; i++ ) {
+      this._components[i].show();
+    }
     this._afterRender();
   },
 
@@ -239,7 +241,7 @@ gin.Class('hza.View', {
     this._controller._registerView(this, bindData);
   },
 
-  _registerComponent: function (component) {
+  registerComponent: function (component) {
     this._components.push(component);
     component.render();    
   },
@@ -271,7 +273,7 @@ gin.Class('hza.Component', {
   init: function (id, html, container) {
     this.id = id || gin.utils.random();
     this.html = html;
-    this.container = $('#' + container) || document.body;
+    this.container = $('#' + container) || $('body');
   },
 
   render: function () {
@@ -285,12 +287,12 @@ gin.Class('hza.Component', {
   },
 
   hide: function () {
-    this._cachedStyleDisplay = this.component.style.display;
-    this.component.style.display = 'none';
+    this._cachedStyleDisplay = this.container[0].style.display;
+    this.container[0].style.display = 'none';
   },
 
   show: function () {
-    this.component.style.display = this._cachedStyleDisplay;
+    this.container[0].style.display = this._cachedStyleDisplay;
   },
 
   addToView: function (view) {
@@ -307,7 +309,8 @@ gin.Class('hza.Component', {
 
   _registerView: function (view) {
     this._view = view;
-    this._view._registerComponent(this);
+    this._view.registerComponent(this);
   }
 });
+
 
