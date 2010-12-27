@@ -267,17 +267,17 @@ gin.Class('hza.View', {
 
 
 gin.Class('hza.Component', {
+  settings: {},
+  extend: {},
   id: null,
   html: null,
   container: null,
   _view: null,
   _cachedStyleDisplay:  '',
 
-  init: function (id, html, container, extend) {
-    this.id = id;
-    this.html = html;
-    this.container = document.getElementById(container) || document.body;
-    if (extend) { gin.merge(this, extend); }
+  init: function (settings) {
+    gin.merge(this, settings);
+    this.container = document.getElementById(this.container) || document.body;
   },
 
   render: function () {
@@ -313,7 +313,12 @@ gin.Class('hza.Component', {
   _registerView: function (view) {
     this._view = view;
     this._view.registerComponent(this);
+  },
+
+  _registerDataHooks: function () {
+    
   }
+
 });
 
 

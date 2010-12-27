@@ -190,7 +190,7 @@ TestCase('hza.Component', {
     this.model      = new hza.Model('testModel');
     this.controller = new hza.Controller('testController', this.model);
     this.indexView  = new hza.View('index', this.controller);
-    this.component  = new hza.Component('widget-component', html);
+    this.component  = new hza.Component({id: 'widget-component', html: html});
   },
 
   'test should be able to instantiate new component': function () {
