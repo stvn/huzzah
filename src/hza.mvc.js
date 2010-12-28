@@ -49,7 +49,7 @@ gin.Class('hza.Model', {
     this._beforeCreate();
     this._dataStore[key] = value;
     this._afterCreate();
-    this._notify('create', value);
+    this._notify('create/' + key, value);
   },
 
   find: function (key) {
@@ -64,14 +64,14 @@ gin.Class('hza.Model', {
     this._beforeUpdate();
     this._dataStore[key] = value;
     this._afterUpdate();
-    this._notify('update', [key, value]);
+    this._notify('update/' + key, [key, value]);
   },
 
   destroy: function (key) {
     this._beforeDestroy();
     delete this._dataStore[key];
     this._afterDestroy();
-    this._notify('destroy', key);
+    this._notify('destroy/' + key, key);
   },
 
   _beforeCreate: function () {
@@ -268,15 +268,17 @@ gin.Class('hza.View', {
 
 gin.Class('hza.Component', {
   settings: {},
-  extend: {},
+  extend: null,
   id: null,
   html: null,
   container: null,
+  dataHooks: {},
   _view: null,
   _cachedStyleDisplay:  '',
 
   init: function (settings) {
     gin.merge(this, settings);
+    this.decorate(this.extend);
     this.container = document.getElementById(this.container) || document.body;
   },
 
@@ -298,8 +300,22 @@ gin.Class('hza.Component', {
     this.container.style.display = this._cachedStyleDisplay;
   },
 
+  update: function (elementId, data) {
+    var element = document.getElementById(elementId);
+    if (element) {
+      element.innerHTML = data;
+      console.log("YIPPEE");
+    }
+  },
+          
+  decorate: function (obj) {
+    if (!obj) { return; }
+    gin.merge(this, obj);
+  },
+
   addToView: function (view) {
-    this._registerView(view);         
+    this._registerView(view);
+    this._registerDataHooks();
   },
 
   _beforeRender: function () {
@@ -316,9 +332,13 @@ gin.Class('hza.Component', {
   },
 
   _registerDataHooks: function () {
-    
+    var model = this._view._controller._model.name;
+    for (var dh in this.dataHooks) {
+      gin.events.subscribe(model + '/' + this.dataHooks[dh], gin.bind(this, function (data) {
+        this.update(dh, data);
+      }));
+    }                    
   }
-
 });
 
 

@@ -51,7 +51,7 @@ TestCase('hza.Model', {
 
   'test should publish event after create': function () {
     var response;
-    gin.events.subscribe('testModel/create', function (value) {
+    gin.events.subscribe('testModel/create/wicked', function (value) {
       response = value;
     });
     this.model.create('wicked', 'yippee');
@@ -60,7 +60,7 @@ TestCase('hza.Model', {
 
   'test should publish event after update': function () {
     var response;
-    gin.events.subscribe('testModel/update', function (value) {
+    gin.events.subscribe('testModel/update/wicked', function (value) {
       response = value;
     });
     this.model.update('wicked', 'yippee');
@@ -69,7 +69,7 @@ TestCase('hza.Model', {
 
   'test should publish event after destroy': function () {
     var response;
-    gin.events.subscribe('testModel/destroy', function (value) {
+    gin.events.subscribe('testModel/destroy/wicked', function (value) {
       response = value;
     });
     this.model.destroy('wicked');
@@ -186,11 +186,12 @@ TestCase('hza.router', {
 TestCase('hza.Component', {
   setUp: function () {
     /*:DOC += <html><head></head><body></body></html> */    
-    var html        = new gin.html.Element('div', {id: 'widget'});
+    var html        = new gin.html.Element('div', {id: 'widget'}).html;
     this.model      = new hza.Model('testModel');
+    this.model.create('widget', 'wow');
     this.controller = new hza.Controller('testController', this.model);
     this.indexView  = new hza.View('index', this.controller);
-    this.component  = new hza.Component({id: 'widget-component', html: html});
+    this.component  = new hza.Component({id: 'widget-component', html: html, dataHooks: {widget: 'create/widget'}});
   },
 
   'test should be able to instantiate new component': function () {
@@ -205,6 +206,7 @@ TestCase('hza.Component', {
        response = resp;
     });
     this.component.addToView(this.indexView);
+    this.indexView.render();
     assertEquals('component/afterRender', response);
   }
 });
