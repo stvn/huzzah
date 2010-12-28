@@ -246,6 +246,7 @@ gin.Class('hza.View', {
 
   registerComponent: function (component) {
     this._components.push(component);
+    component._view = this;
     component.render();    
   },
 
@@ -289,6 +290,7 @@ gin.Class('hza.Component', {
     component.innerHTML = this.html;
     this.container.appendChild(component);
     this._afterRender();
+    this._registerDataHooks();
   },
 
   hide: function () {
@@ -304,7 +306,6 @@ gin.Class('hza.Component', {
     var element = document.getElementById(elementId);
     if (element) {
       element.innerHTML = data;
-      console.log("YIPPEE");
     }
   },
           
@@ -313,10 +314,10 @@ gin.Class('hza.Component', {
     gin.merge(this, obj);
   },
 
-  addToView: function (view) {
-    this._registerView(view);
-    this._registerDataHooks();
-  },
+  //addToView: function (view) {
+  //  this._registerView(view);
+  //  this._registerDataHooks();
+  //},
 
   _beforeRender: function () {
     gin.events.publish('component/'+this.id+'/beforeRender', []);
