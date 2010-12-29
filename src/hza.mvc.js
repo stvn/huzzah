@@ -218,7 +218,6 @@ gin.Class('hza.View', {
     this.name = name;
     this._registerController(controller, bindData);
     if (extend) { gin.merge(this, extend); }
-    //this.render();
   },
 
   render: function (data) {
@@ -230,12 +229,10 @@ gin.Class('hza.View', {
   },
 
   _beforeRender: function () {
-    //gin.events.publish('view/beforeRender');
     this._notify('beforeRender', this.name);
   },
 
   _afterRender: function () {
-    //gin.events.publish('view/afterRender');
     this._notify('afterRender', this.name);
   },
 
