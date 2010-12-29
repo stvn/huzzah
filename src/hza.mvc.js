@@ -7,7 +7,7 @@ gin.ns('hza.router', {
     var segments = path.split('/'),
         controller = segments[0],
         view = segments[1],
-        id = segments[2 ? segments[2] : null];
+        id = segments[2] ? segments[2] : null;
     
     this.getResource(controller, view, id);
     this.current = path;
