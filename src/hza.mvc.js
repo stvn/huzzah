@@ -323,7 +323,7 @@ gin.Class('hza.Component', {
 
   removeDataHook: function (id) {
     var dataHook = this.dataHooks[id];
-    gin.events.unsubscribe(this.model + '/' + dataHook);
+    gin.events.unsubscribe(this._view._controller._model.name + '/' + dataHook);
     delete dataHook;
   },
 
