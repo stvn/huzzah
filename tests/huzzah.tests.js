@@ -205,10 +205,11 @@ TestCase('hza.Component', {
     gin.events.subscribe('component/widget-component/afterRender', function (resp) {
        response = resp;
     });
-    //this.component.addToView(this.indexView);
     this.indexView.registerComponent(this.component);
     this.indexView.render();
     assertEquals('component/afterRender', response);
   }
+
+  //TODO: need tests for component dataHooks
 });
 

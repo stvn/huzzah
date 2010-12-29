@@ -274,6 +274,7 @@ gin.Class('hza.Component', {
   html: null,
   container: null,
   dataHooks: {},
+  _hasRendered: false,
   _view: null,
   _cachedStyleDisplay:  '',
 
@@ -290,7 +291,8 @@ gin.Class('hza.Component', {
     component.innerHTML = this.html;
     this.container.appendChild(component);
     this._afterRender();
-    this._registerDataHooks();
+    this._processDataHooks();
+    this._hasRendered = true;
   },
 
   hide: function () {
@@ -314,10 +316,16 @@ gin.Class('hza.Component', {
     gin.merge(this, obj);
   },
 
-  //addToView: function (view) {
-  //  this._registerView(view);
-  //  this._registerDataHooks();
-  //},
+  addDataHook: function (id, topic) {
+    this.dataHooks[id] = topic;
+    this._registerDataHook(id, topic);
+  },
+
+  removeDataHook: function (id) {
+    var dataHook = this.dataHooks[id];
+    gin.events.unsubscribe(this.model + '/' + dataHook);
+    delete dataHook;
+  },
 
   _beforeRender: function () {
     gin.events.publish('component/'+this.id+'/beforeRender', []);
@@ -332,13 +340,18 @@ gin.Class('hza.Component', {
     this._view.registerComponent(this);
   },
 
-  _registerDataHooks: function () {
-    var model = this._view._controller._model.name;
+  _processDataHooks: function () {
+    if (this._hasRendered) { return; }
     for (var dh in this.dataHooks) {
-      gin.events.subscribe(model + '/' + this.dataHooks[dh], gin.bind(this, function (data) {
-        this.update(dh, data);
-      }));
-    }                    
+      this._registerDataHook(dh, this.dataHooks[dh]);
+    }
+  },
+
+  _registerDataHook: function (id, topic) {
+    var model = this._view._controller._model.name;
+    gin.events.subscribe(model + '/' + topic, gin.bind(this, function (data) {
+      this.update(id, data);
+    }));
   }
 });
 
