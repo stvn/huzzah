@@ -1,51 +1,92 @@
 gin.ns('hza.router', {
-  controllers: {},
-  current: null,
+  _registeredControllers: [],
+  _currentResource:       null,
+  _currentId:             null,
+  _lastRequestedPath:     null,
 
-  route: function (path) {
-    //sample path: controller/view/id
-    var segments = path.split('/'),
-        controller = segments[0],
-        view = segments[1],
-        id = segments[2] ? segments[2] : null;
-    
-    this.getResource(controller, view, id);
-    this.current = path;
+  route: function (path, args) {
+    //path: controller/view/id
+    var parsedPath          = path.split('/');
+    this._lastRequestedPath = path;
+    this._lastArguments     = args;
+    this.getResource(parsedPath);
   },
 
-  getResource: function (controller, view, id) {
-    if (this.controllers[controller] && this.controllers[controller][view]) {
-      this.current = [controller, view, id]; 
-      this.controllers[controller][view](id);
-    } else {
-      throw new Error('Routing Error: No matching route.');
-    }
+  getCurrent: function () {
+    if (!this._currentResource) { return; }
+    this._currentResource(this._currentId);
   },
 
-  loadCurrent: function () {
-    this.getResource(this.current);           
+  setCurrent: function (resource, id) {
+    this._currentResource = resource;
+    this._currentId       = id;
+  },
+
+  hideCurrent: function () {
+    this.currentView.hide();
+  },
+
+  _getController: function (controllerName) {
+    return this.registerControllers[controllerName];
   },
 
   registerController: function (controller) {
-    this.controllers[controller.name] = controller;
-  }
+    this._registeredControllers[controller.name] = controller;
+  },
 
+  getResource: function (pathArray) {
+    var controller = this._registeredControllers[pathArray[0]],
+        view       = controller ? controller[pathArray[1]] : undefined,
+        id         = view ? pathArray[3] : undefined;
+  
+    if (controller && view) {
+      if (this.currentView) { this.hideCurrent(); }
+      controller[pathArray[1]](id, this._lastArguments);
+      this.setCurrent(controller[pathArray[1]], id);
+      this.currentView = controller._getView(pathArray[1]);
+    } else {
+      throw new Error('Routing Error: No matching route: ' + this._lastRequestedPath);
+    }
+  }
+});
+
+gin.ns('hza.registry', {
+  lastId: 0,
+  nextId: function () {
+    this.lastId += 1;
+    return this.lastId;
+  },
+
+  add: function (type, obj) {
+    this[type]         = this[type] || {};
+    this[type][obj.id] = obj;
+  },
+
+  getById: function (type, id) {
+    this[type] = this[type] || {};
+    return this[type][id];
+  },
+
+  getByName: function (type, name) {
+    for (var p in this[type]) {
+      if (p === name) {
+        return this[type][p];
+      }
+    }
+  }
 });
 
 gin.Class('hza.Model', {
-  name: null,
-  _dataStore: {},
-  _controller: {},
-  _views: [],  
-
   init: function (name, extend) {
     if (!name) {throw new Error('A name is required.'); }
-    this.name = name;
-    if (extend) { gin.merge(this, extend); }
+    this._dataStore = {};
+    this.id         = hza.registry.nextId();
+    this.name       = name;
+    if (extend && typeof extend === 'object') { gin.merge(this, extend); }  
+    hza.registry.add('models', this);   
   },
 
   create: function (key, value) {
-    //TODO: additionally accept an object literal
     this._beforeCreate();
     this._dataStore[key] = value;
     this._afterCreate();
@@ -103,97 +144,43 @@ gin.Class('hza.Model', {
     return 'key: ' + key + ' value: ' + value + ' type: ' + typeof value;
   },
 
-  _registerController: function (controller) {
-    this._controller = controller;
-  },
-
-  _registerView: function (view) {
-    this._views.push(view);
-  },
-
   _notify: function (topic, message) {
     gin.events.publish(this.name + '/' + topic, [message]);
   }
-  
 });
 
 gin.Class('hza.Controller', {
-  name: null,
-  router: hza.router,
-  _currentView: null,
-  _viewMap: {},
-  _model: {},
-  _views: [],
+  _router: hza.router,
 
-  init:  function (name, model, extend) {
+  init: function (name, model, extend) {
     if (!name || !model) { throw new Error('A name and/or model required.'); } 
-    this.name = name;
-    this._registerModel(model);
+    this.id       = hza.registry.nextId();
+    this.name     = name;
+    this.model    = model,
+    this._views   = [];
+    this._viewMap = {};
     this._registerWithRouter();
-    if (extend) { gin.merge(this, extend); }
-  },
-
-  index: function () {
-    var data = this._model.all();
-    this.render('index', data); 
-  },
-
-  new: function () {
-    this.render('new');
-  },
-
-  create: function (key, value) {
-    this._model.create(key, value);
-    this.redirectTo('show', this._model.find(key));
-  },
-
-  show: function (key) {
-    var data = this._model.find(key);
-    this.render('show', data);
-  },
-
-  edit: function (key) {
-    var data = this._model.find(key);
-    this.render('edit', data);
-  },
-
-  update: function (key, value) {
-    this._model.update(key, value);
-    this.redirectTo('show', this._model.find(key));
-  },
-
-  destroy: function (key) {
-    this._model.destroy(key);
-    this.redirectTo('index');
+    if (extend && typeof extend === 'object') { gin.merge(this, extend); }    
+    hza.registry.add('controllers', this);
   },
 
   render: function (viewName, data) {
-    if (this._currentView) { this._currentView.hide(); }
     var view = this._getView(viewName);
     if (!view) { throw new Error(viewName + ' does not exist.'); }
     view.render(data);
   },
 
-  redirectTo: function (view, data) {
-    this.render(view, data)
-  },
-
-  _registerModel: function (model) {
-    this._model = model;
-    this._model._registerController(this);
-  },
-
   _registerView: function (view, bindData) {
     this._views.push(view);
     this._viewMap[view.name] = this._views.length - 1;
-    this._model._registerView(view);
+    //create views on the fly
     if (!this[view.name]) {
       this._createViewAction(view, bindData);
     }
   },
 
   _registerWithRouter: function () {
-    this.router.registerController(this);
+    this._router.registerController(this);
   },
 
   _createViewAction: function (view, bindData) {
@@ -204,101 +191,118 @@ gin.Class('hza.Controller', {
 
   _getView: function (name) {
     return this._views[this._viewMap[name]];
-  }
+  }    
 });
 
-
 gin.Class('hza.View', {
-  name: null,
-  _controller: {},
-  _components : [],
-    
-  init: function (name, controller, bindData, extend) {
-    if (!name || !controller) { throw new Error('A name and/or controller required.'); } 
-    this.name = name;
-    this._registerController(controller, bindData);
-    if (extend) { gin.merge(this, extend); }
+  init: function (name, controller, extend) {
+    if (!name || !controller) { throw new Error('A name and/or controller is required.'); }
+    this.id           = hza.registry.nextId();
+    this.name         = name;
+    this.components   = [];
+    this._hasRendered = false;
+    this._cachedStyleDisplay = '';
+    this._registerController(controller);
+    this._createDomNode();
+    this._afterInit();
+    if (extend && typeof extend === 'object') { gin.merge(this, extend); }
+    hza.registry.add('views', this);
   },
 
   render: function (data) {
+    this.data = data;
     this._beforeRender();
-    for (var i = 0, ii = this._components.length; i < ii; i++ ) {
-      this._components[i].show();
+    for (var i = 0, ii = this.components.length; i < ii; i++ ) {
+      var component = this.components[i];
+      if (component.hasRendered) {
+        component.show()
+      } else {
+        component.render();
+      }
     }
-    this._afterRender();
+    this._afterRender();    
+    this._hasRendered = true;
+    this.show();
+  },
+
+  show: function () {
+    var style = this._cachedStyleDisplay === 'none' ? '' : this._cachedStyleDisplay;
+    this.domNode.style.display = style;
+  },
+
+  hide: function () {
+    if (!this._hasRendered) { return; }      
+    this._cachedStyleDisplay   = this.domNode.style.display;
+    this.domNode.style.display = 'none';
+  },
+        
+  registerComponent: function (component) {
+    this.components.push(component);
+    component._view = this;
+    //component.render();    
+  },
+
+  _createDomNode: function () {
+    this.domNode    = document.createElement('div');
+    this.domNode.id = this.name + 'View';
+    this.domNode.style.display = 'none';
+    document.body.appendChild(this.domNode);
   },
 
   _beforeRender: function () {
-    this._notify('beforeRender', this.name);
+                 
   },
 
   _afterRender: function () {
-    this._notify('afterRender', this.name);
+                
   },
 
-  _registerController: function (controller, bindData) {
-    this._controller = controller;
-    this._controller._registerView(this, bindData);
+  _afterInit: function () {
+              
   },
 
-  registerComponent: function (component) {
-    this._components.push(component);
-    component._view = this;
-    component.render();    
-  },
-
-  _getComponent: function (id) {
-    var component;
-    for (var i = 0, ii = this._components.length; i < ii; i++) {
-      if (this._components[i].id === id) {
-        component = this._components[i].id;
-      }
-    }
-    return component;
-  },
-
-  _notify: function (topic, message) {
-    gin.events.publish(this.name + '/' + topic, [message]);
+  _registerController: function (controller) {
+    this.controller = controller;
+    this.controller._registerView(this);
   }
-
+    
 });
 
-
 gin.Class('hza.Component', {
-  settings: {},
-  extend: null,
-  id: null,
-  html: null,
-  container: null,
-  dataHooks: {},
-  _hasRendered: false,
-  _view: null,
-  _cachedStyleDisplay:  '',
-
-  init: function (settings) {
+  init: function (settings, extend) {
+    this.id           = hza.registry.nextId();
+    this.settings     = {};
+    this.dataHooks    = {};
+    this._hasRendered = false;
+    this._view        = null;
+    this.script       = null; 
     gin.merge(this, settings);
-    this.decorate(this.extend);
-    this.container = document.getElementById(this.container) || document.body;
+    hza.registry.add('components', this);
   },
 
   render: function () {
+    if (this._hasRendered) { return; }
     this._beforeRender();
+    this.container = document.getElementById(this.container) || this._view.domNode;
     var component = document.createElement('div');
-    component.id = this.id;
+    component.id = this.domId;
     component.innerHTML = this.html;
     this.container.appendChild(component);
     this._afterRender();
     this._processDataHooks();
     this._hasRendered = true;
+    this._loadScript();
+    this.component = component;
   },
 
   hide: function () {
-    this._cachedStyleDisplay = this.container.style.display;
-    this.container.style.display = 'none';
+    if (!this._hasRendered) { return; }
+    this._cachedStyleDisplay = this.component.style.display;
+    this.component.style.display = 'none';
   },
 
   show: function () {
-    this.container.style.display = this._cachedStyleDisplay;
+    this.component.style.display = this._cachedStyleDisplay;
   },
 
   update: function (elementId, data) {
@@ -349,7 +353,12 @@ gin.Class('hza.Component', {
     gin.events.subscribe(model + '/' + topic, gin.bind(this, function (data) {
       this.update(id, data);
     }));
+  },
+
+  _loadScript: function () {
+    if (!this.script) { return; };
+    this.script();
   }
+
+
 });
-
-
